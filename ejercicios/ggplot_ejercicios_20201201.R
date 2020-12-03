@@ -1,3 +1,12 @@
+library(tidyverse)
+library(treemap)
+
+dir1 <- "~/Documents/Repos/datascience-jalisco-b2/databases" # Base de datos
+dir2 <- '~/Documents/Repos/datascience-jalisco-b2/graphs' # Gráficas
+
+data <- read_csv(paste(dir1, "rnped_limpia.csv", sep="/"))
+
+
 # PREGUNTA 2: Entre hombres y mujeres, ¿cuál fue el grupo más vulnerable en el 2011?
 ## Preparación:
 # 1) Filtrar a únicamente los registros del año 2011
