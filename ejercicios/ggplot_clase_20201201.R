@@ -146,10 +146,13 @@ tempo  <- data %>%
   summarise(total = sum(total)) %>% # Reducir todo a 1 obs por grupo
   ungroup() %>%
   mutate(totales = sum(total),
-         porcentaje = round((total/totales)*100, 2))
+         porcentaje = round((total/totales)*100, 2),
+         label=paste(nom_ent, porcentaje), sep = ': ')
 
 png(paste(dir2, "9.png", sep="/"), width=12, height=12, units="in", res=300)
-treemap(tempo, index="ent", vSize="porcentaje", vColor="index", type="index", title="Porcentaje desaperecidos por entidad - 2011", palette="Reds", title.legend="", border.col="grey", border.lwd=0.5)
+treemap(tempo, index="ent", vSize="porcentaje", vColor="index", type="index",
+        title="Porcentaje desaperecidos por entidad - 2011", palette="Reds",
+        title.legend="", border.col="grey", border.lwd=0.5)
 dev.off()
 
 ## Mini-ejercicio:
@@ -157,9 +160,9 @@ dev.off()
 # 2) Indicar en vColor la columna de donde se obtendrán los valores para los colores
 # 3) Cambia a una paleta de azules
 png(paste(dir2, "10.png", sep="/"), width=12, height=12, units="in", res=300)
-treemap(tempo, index="____", vSize="porcentaje", vColor="____", type="value",
+treemap(tempo, index="label", vSize="porcentaje", vColor="porcentaje", type="value",
         title="Porcentaje desaperecidos por entidad - 2011",
-        palette="____", title.legend="", border.col="grey", border.lwd=0.5)
+        palette="Blues", title.legend="", border.col="grey", border.lwd=0.5)
 dev.off()
 
 ###########
@@ -257,6 +260,7 @@ gr <- ggplot(tempo, aes(x=year, y=porcentaje, fill=nom_ent)) +
        x="Año", y="% de desaparecidos", fill="Entidad") +
   theme_bw()
 ggsave(paste(dir2, "17.png", sep="/"), plot=gr, width = 12, height = 12)
+
 
 ############
 # Boxplots #
