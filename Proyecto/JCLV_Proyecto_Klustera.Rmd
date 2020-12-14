@@ -1,0 +1,247 @@
+---
+title: "Proyecto Klustera"
+author: "Juan Carlos Lozano"
+date: "14/12/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Este documento es el proyecto final del curso de Ciencia de Datos impartido por DEV.F y pretende resolver la siguiente pregunta:
+
+## ¿Cómo saber si una conexión registrada es efectivamente un visitante?
+
+Para resolver esta pregunta se siguió el proceso detallado en este documento.
+
+### Librerías utilizadas
+Se utilizó el paquete de librerías de Tidyverse para el filtrado, selección y trasnformación de las bases de datos utilizadas. Así como gmodels y C50 para el modelado de las predicciones y, una vez generado el modelo, para correrlo en la base de datos y resolver la pregunta.
+
+```{r echo=FALSE, include=FALSE}
+library(tidyverse)
+library(gmodels)
+library('C50')
+
+options(scipen = 999)
+
+dir1 <- '~/Documents/Repos/datascience-jalisco-b2'
+setwd(dir1)
+```
+
+### Datasets a analizar
+Se utilizaron dos datasets con las mismas variables, con la excepción de que uno no incluye la columna 'Visitor', misma que será añadida producto del análisis final de este ejercicio.
+
+```{r echo=FALSE, include=FALSE}
+datos_e <- read_csv(paste(dir1, 'databases', 'e.csv', sep = '/'))
+datos_v <- read_csv(paste(dir1, 'databases', 'v.csv', sep = '/'))
+```
+
+### Análisis Exploratorio
+Como primera etapa del análisis se definieron cinco preguntas a explorar.
+
+#### 1. ¿Cuál es la sucursal que recibe mas conexiones?
+Utilizando el dataset 'e.csv', en el que ya se sabe cuál es un visitante. Se filtró para dejar solo las filas que sí crresponden a visitantes, de manera posterior se agrupó por sucursal, se colapsó por número de conexiones y se ordenó de manera descendente según el número de conexiones.
+
+```{r echo=FALSE, include=FALSE}
+p1 <- datos_e %>%
+  filter(visitor = TRUE) %>%
+  group_by(branch_office) %>%
+  summarise(conexiones = n()) %>%
+  arrange(desc(conexiones))
+```
+
+Como la gráfica muestra, la sucursal 1 es la que recibe más visitantes.
+
+```{r echo=FALSE}
+g_p1 <- p1 %>%
+  ggplot(mapping = aes(x=reorder(branch_office, conexiones), conexiones))+
+  geom_col(colour = '#2cbba4', fill = '#2cbba4')+
+  coord_flip()+
+  labs(title = "Conexiones por sucursal",
+       caption = 'Fuente: base de datos de Klustera',
+       x = "Sucursal", y="Conexiones")+
+  geom_text(aes(label = conexiones),hjust = 1,  vjust= .5, color= "white", size = 3, fontface = 'bold')+
+  theme(plot.subtitle = element_text(size = rel(1.5)))+
+  theme_bw()
+
+g_p1
+```
+
+
+#### 2. ¿Qué día de la semana tenemos mas visitantes?
+De la misma manera, se utilizó el dataset 'e.csv'. De nuevo se filtró para dejar solamente las filas que corresponden a visitantes, se agrupó por día de la semana y se colapsó según el número de visitantes por día.
+
+```{r echo=FALSE, include=FALSE}
+p2 <- datos_e %>%
+  filter(visitor == 'TRUE') %>%
+  group_by(day_of_week_tz) %>%
+  summarise(visitantes = n())
+```
+
+Como la gráfica muestra, la sucursal 1 es la que recibe más visitantes.
+
+```{r echo=FALSE}
+g_p2 <- p2 %>%
+  ggplot(mapping = aes(x=reorder(day_of_week_tz, visitantes), visitantes))+
+  #ggplot(aes(x=day_of_week_tz, y=visitantes))+
+  geom_point(colour = '#227070', fill = '#227070', size = 4)+
+  geom_segment(aes(x=day_of_week_tz, xend=day_of_week_tz, y=0, yend=visitantes), color = '#227070', size=1)+
+  coord_flip()+
+  labs(title = "Visitantes por día de la semana",
+       caption ='Fuente: base de datos de Klustera',
+       x = "Día de la semana", y="Conexiones")+
+  geom_text(aes(label = visitantes),hjust = .5,  vjust= -1.5, size = 3, color='#227070')+
+  theme(plot.subtitle = element_text(size = rel(1.5)))+
+  theme_bw()
+
+g_p2
+```
+
+#### 3. ¿Cuál es el tiempo promedio de conexión de un visitante?
+```{r echo=FALSE, include=FALSE}
+p3 <- datos_e %>%
+  filter(visitor == 'TRUE')
+
+p3 <- mean(p3$tiempodeses)
+p3 <- round(p3, 2)
+```
+
+También se respondió la pregunta respecto al tiempo promedio que dura la conexión de un visitante. Para obtener la respuesta se filtró, una vez más, para conservar solo las filas de visitantes, para luego calcular el tiempo promedio de las sesiones. Resultando que el tiempo promedio de conexión de un visitante es de: `r paste(p3, 'segundos', sep = ' ')`
+
+#### 4. ¿Cuantas persona por mes han realizado visitas?
+De nueva cuenta se utilizó el dataset 'e.csv'. Al igual que en las preguntas anteriores, se filtró para mantener solo aquellas filas con visitantes confirmado para después filtrar según el mes de visita, colapsar por número de visitantes y ordernar de manera descendente según este mismo factor.
+
+```{r echo=FALSE, include=FALSE}
+p4 <- datos_e %>%
+  filter(visitor == 'TRUE') %>%
+  group_by(month_tz) %>%
+  summarise(visitantes = n()) %>%
+  arrange(desc(visitantes))
+```
+
+De esta manera, podemos observar que el mes 11, Noviembre, es el que más visitantes recibió en el periodo evaluado.
+```{r echo=FALSE}
+g_p4 <- p4 %>%
+  ggplot(mapping = aes(x=reorder(month_tz, visitantes), visitantes))+
+  geom_col(colour = '#56D1D1', fill = '#56D1D1')+
+  coord_flip()+
+  labs(title = "Visitantes por mes",
+       caption ='Fuente: base de datos de Klustera',
+       x = "Mes", y="Visitantes")+
+  geom_text(aes(label = visitantes),hjust = 1,  vjust= .5, color= "white", size = 4, fontface = 'bold')+
+  theme(plot.subtitle = element_text(size = rel(1.5)))+
+  theme_bw()
+
+g_p4
+```
+
+#### 5. ¿A qué hora se registran más visitantes?
+```{r echo=FALSE, include=FALSE}
+p5 <- datos_e %>%
+  filter(visitor == 'TRUE') %>%
+  group_by(hour_tz, day_of_week_tz) %>%
+  summarise(visitantes = n())
+```
+
+Aunque la pregunta expresa responde a la hora con más visitantes, se consideró que quizá sería más útil conocer no solo la hora, sino también el día en el que se recibieron más visitantes. Por lo que, para responder a esta última pregunta fue necesario filtrar, de la misma manera, para conservar solo las filas con visitantes. Posteriormente se agrupó por hora y día de la semana y se colapsó según el número visitantes.
+
+De esta manera, podemos observar que el mes 11, Noviembre, es el que más visitantes recibió en el periodo evaluado.
+
+
+```{r echo=FALSE}
+g_p5 <- p5 %>%
+  ggplot(aes(x=hour_tz, y=day_of_week_tz, fill=visitantes)) +
+  geom_tile(color="black") +
+  scale_fill_continuous(low="#ece2f0", high="#1c9099") +
+  labs(title="Visitantes según hora y día de la semana", 
+       x="Hora", y="Día de la semana", fill="Visitantes") +
+  coord_fixed() +
+  theme_bw()
+
+g_p5
+```
+
+
+### Entrenamiento para el modelo de Árboles de Decisión
+Una vez concluido el anáisis exploratorio, se procedió a entrenar el modelo de Árboles de Decisión. 
+El primer paso es tomar los datasets que hemos utilizado hasta ahora y eliminar aquellas columnas que no aportan al modelo.En este caso, se eliminaron las columnas 1 y 2, que corresponden al orden consecutivo de las observaciones y al id de usuario, respectivamente; se eliminó también la columna 6, correspondiente al nombre de los días de la semana.
+
+El dataset datos_e será el de entrenamiento y prueba, mientras que el dataset sujeto del modelo es datos_v.
+
+```{r}
+datos_e <- read.csv(paste(dir1, 'databases', 'e.csv', sep = '/')) %>%
+  select(-1, -2, -6)
+
+datos_v <- read.csv(paste(dir1, 'databases', 'v.csv', sep = '/')) %>%
+  select(-1, -2, -6)
+```
+
+Antes de continuar, el modelo requiere que la columna visitor sea de factores, por lo que se ejecuta el siguiente código para transformarla.
+```{r}
+datos_e$visitor <- factor(datos_e$visitor,
+                         levels = c('true', 'false'),
+                         labels = c('TRUE', 'FALSE'))
+```
+
+Como se observa a continuación, el 65 % de las observaciones son falsas, es decir, no son visitantes, mientras que el 34.2 % corresponen a visitantes.
+```{r echo=FALSE}
+round(prop.table(table(datos_e$visitor))*100, digits = 1)
+```
+
+
+Posteriormente, se procedió a divir el dataset datos_e en dos: el 80 % de las filas se utilizaron para entrenamiento, mientras que el 20 % restante se utilizó para la validación del modelo. En cada uno de los datasets creados se exluyó la columna 'visitor'.
+
+```{r}
+nfilas <- nrow(datos_e) * .80
+set.seed(123)
+index <- sample(1:nrow(datos_e), nfilas)
+datos_e_train <- datos_e[index, -5]
+datos_e_test <- datos_e[-index, -5]
+```
+
+Para validar los resultados, se crearon dos datasets complementarios que contienen solamente la columna 'visitor'. Estos datasets serán utilizados para corroborar la efectividad del modelo.
+
+```{r}
+datos_e_train_labels <- datos_e[index, 5]
+datos_e_test_labels <- datos_e[-index, 5]
+```
+
+En este paso se genera el modelo con el 80 % de las filas destinadas al entrenamiento.
+```{r}
+datos_e_model <- C5.0(datos_e_train, datos_e_train_labels)
+```
+
+Una vez que se generó el modelo, se ejecuta sobre el 20 % de las filas reservabas para la prueba. 
+
+```{r}
+datos_e_predict <- predict(datos_e_model, datos_e_test)
+```
+
+Par obtener el mejor resultado, el modelo se replica una cantidad de veces determinada. En esta ocasión se eligió replicarlo 50 veces.
+```{r}
+datos_e_boost50_model <- C5.0(datos_e_train, datos_e_train_labels, trials = 50)
+datos_e_boost50_model
+
+datos_e_boost_pred50 <- predict(datos_e_boost50_model, datos_e_test)
+```
+
+### Conclusiones
+```{r echo=FALSE}
+CrossTable(datos_e_test_labels, datos_e_boost_pred50,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual', 'predicción'))
+```
+Como se observa en la tabla anterior, los falsos positivos representan tan solo el 2.5 % de las observaciones, mienstras que los falsos confirmados corresponden al 65 % de las observaciones. De la misma manera, los falsos negativos equivalen el 1.2 % y los falsos confirmados al 31.3 %. Estas proporciones se acercan lo suficiente a la distribución real de la tabla, como se presentó en este mismo documento. Así, se puede concluir que el modelo ha sido exitoso y que puede replicarse en el dataset datos_v para determinar cuáles usuarios son visitantes y cuáles no.
+
+Para este proceso, se ejecutó la siguiete siguiente línea de código.
+
+```{r}
+datos_v_boost_pred50 <- predict(datos_e_boost50_model, datos_v)
+```
+
+Una vez hecho este proceso, se agregaron los resultados al dataset datos_v utilizando la función mutate.
+```{r}
+datos_v <- datos_v %>%
+  mutate(prediccion = datos_v_boost_pred50)
+```
